@@ -12,8 +12,10 @@ jobs:
         include:
           - arch: x86
             platform: Win32
+            bits: 32
           - arch: x64
             platform: x64
+            bits: 64
 
     steps:
     - uses: actions/checkout@v2
@@ -52,7 +54,7 @@ jobs:
     - name: Compile
       run: |
         msbuild msvc_project/VapourSynth.sln /t:Build /p:Configuration=Release /p:Platform=${{ matrix.platform }}        
-        pip install . --no-deps
+        pip install . --no-deps -v
         
         pushd installer
         $env:SKIP_COMPRESS="yes"
@@ -64,9 +66,25 @@ jobs:
         } else {
           pushd buildp32
         }
-        pip install . --no-deps
+        pip install . --no-deps -v
         popd
         popd
+
+    - name: Build release
+      shell: bash
+      run: |
+        bits=${{ matrix.bits }}
+        arch=${{ matrix.arch }}
+        cp "$(dirname $(which python))"/Lib/site-packages/vapoursynth*.pyd installer/buildp$bits
+        7z a -t7z -mx=3 ../build.7z .
+        mv ../*.7z .
+        mv installer/buildp$bits upload
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-${{matrix.arch}}
+        if-no-files-found: error
+        path: build.7z
 
     - name: Run test
       run: python -m unittest discover -s test -p "*test.py"

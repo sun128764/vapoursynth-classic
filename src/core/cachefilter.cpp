@@ -239,7 +239,7 @@ static void VS_CC createCacheFilter(const VSMap *in, VSMap *out, void *userData,
     else if (c->makeLinear)
         c->cache.setMaxFrames(std::max((c->numThreads + extraFrames) * 2, 20 + c->numThreads));
     else
-        c->cache.setMaxFrames(20 + c->numThreads);
+        c->cache.setMaxFrames(0 + c->numThreads);
 
     vsapi->createFilter(in, out, ("Cache" + std::to_string(cacheId++)).c_str(), cacheInit, cacheGetframe, cacheFree, c->makeLinear ? fmUnorderedLinear : fmUnordered, nfNoCache | nfIsCache, c, core);
 

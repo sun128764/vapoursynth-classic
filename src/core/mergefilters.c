@@ -41,7 +41,7 @@ static void VS_CC preMultiplyInit(VSMap *in, VSMap *out, void **instanceData, VS
     vsapi->setVideoInfo(d->vi, 1, node);
 }
 
-static int getLimitedRangeOffset(const VSFrameRef *f, const VSVideoInfo *vi, const VSAPI *vsapi) {
+static unsigned getLimitedRangeOffset(const VSFrameRef *f, const VSVideoInfo *vi, const VSAPI *vsapi) {
     int err;
     int limited = !!vsapi->propGetInt(vsapi->getFramePropsRO(f), "_ColorRange", 0, &err);
     if (err)
@@ -72,71 +72,27 @@ static const VSFrameRef *VS_CC preMultiplyGetFrame(int n, int activationReason, 
             const uint8_t *srcp2 = vsapi->getReadPtr(plane > 0 ? src2_23 : src2, 0);
             uint8_t * VS_RESTRICT dstp = vsapi->getWritePtr(dst, plane);
             int yuvhandling = (plane > 0) && (d->vi->format->colorFamily == cmYUV || d->vi->format->colorFamily == cmYCoCg);
-            int offset = getLimitedRangeOffset(src1, d->vi, vsapi);
+            unsigned offset = getLimitedRangeOffset(src1, d->vi, vsapi);
+            unsigned depth = d->vi->format->bitsPerSample;
 
-            if (d->vi->format->sampleType == stInteger) {
-                if (d->vi->format->bytesPerSample == 1) {
-                    if (yuvhandling) {
-                        for (int y = 0; y < h; y++) {
-                            for (int x = 0; x < w; x++) {
-                                uint8_t s1 = srcp1[x];
-                                uint8_t s2 = srcp2[x];
-                                dstp[x] = ((((s1 - 128) * (((s2 >> 1) & 1) + s2))) >> 8) + 128;
-                            }
-                            srcp1 += stride;
-                            srcp2 += stride;
-                            dstp += stride;
-                        }
-                    } else {
-                        for (int y = 0; y < h; y++) {
-                            for (int x = 0; x < w; x++) {
-                                uint8_t s1 = srcp1[x];
-                                uint8_t s2 = srcp2[x];
-                                dstp[x] = ((((s1 - offset) * (((s2 >> 1) & 1) + s2)) + 128) >> 8) + offset;
-                            }
-                            srcp1 += stride;
-                            srcp2 += stride;
-                            dstp += stride;
-                        }
-                    }
-                } else if (d->vi->format->bytesPerSample == 2) {
-                    const unsigned shift = d->vi->format->bitsPerSample;
-                    const int halfpoint = 1 << (shift - 1);
-                    const int maxvalue = (1 << shift) - 1;
-                    if (yuvhandling) {
-                        for (int y = 0; y < h; y++) {
-                            for (int x = 0; x < w; x++) {
-                                uint16_t s1 = ((const uint16_t *)srcp1)[x];
-                                uint16_t s2 = VSMIN(((const uint16_t *)srcp2)[x], maxvalue);
-                                ((uint16_t *)dstp)[x] = (((s1 - halfpoint) * (((s2 >> 1) & 1) + s2)) >> shift) + halfpoint;
-                            }
-                            srcp1 += stride;
-                            srcp2 += stride;
-                            dstp += stride;
-                        }
-                    } else {
-                        for (int y = 0; y < h; y++) {
-                            for (int x = 0; x < w; x++) {
-                                uint16_t s1 = ((const uint16_t *)srcp1)[x];
-                                uint16_t s2 = ((const uint16_t *)srcp2)[x];
-                                ((uint16_t *)dstp)[x] = ((((s1 - offset) * (((s2 >> 1) & 1) + s2)) + halfpoint) >> shift) + offset;
-                            }
-                            srcp1 += stride;
-                            srcp2 += stride;
-                            dstp += stride;
-                        }
-                    }
-                }
-            } else if (d->vi->format->sampleType == stFloat) {
-                if (d->vi->format->bytesPerSample == 4) {
-                    for (int y = 0; y < h; y++) {
-                        for (int x = 0; x < w; x++)
-                            ((float *)dstp)[x] = ((const float *)srcp1)[x] * ((const float *)srcp2)[x];
-                        srcp1 += stride;
-                        srcp2 += stride;
-                        dstp += stride;
-                    }
-                }
+            void (*func)(const void *, const void *, void *, unsigned, unsigned, unsigned) = NULL;
+
+            if (d->vi->format->sampleType == stInteger && d->vi->format->bytesPerSample == 1)
+                func = vs_premultiply_byte_c;
+            else if (d->vi->format->sampleType == stInteger && d->vi->format->bytesPerSample == 2)
+                func = vs_premultiply_word_c;
+            else if (d->vi->format->sampleType == stFloat && d->vi->format->bytesPerSample == 4)
+                func = vs_premultiply_float_c;
+
+            if (!func)
+                continue;
+
+            for (int y = 0; y < h; ++y) {
+                func(srcp1, srcp2, dstp, depth, yuvhandling ? (1 << (depth - 1)) : offset, w);
+
+                srcp1 += stride;
+                srcp2 += stride;
+                dstp += stride;
             }
         }
 
@@ -430,8 +386,8 @@ static const VSFrameRef *VS_CC maskedMergeGetFrame(int n, int activationReason, 
         const VSFrameRef *src2 = vsapi->getFrameFilter(n, d->node2, frameCtx);
         const VSFrameRef *mask = vsapi->getFrameFilter(n, d->mask, frameCtx);
         const VSFrameRef *mask23 = 0;
-        int offset1 = getLimitedRangeOffset(src1, d->vi, vsapi);
-        int offset2 = getLimitedRangeOffset(src2, d->vi, vsapi);
+        unsigned offset1 = getLimitedRangeOffset(src1, d->vi, vsapi);
+        unsigned offset2 = getLimitedRangeOffset(src2, d->vi, vsapi);
 
         const int pl[] = {0, 1, 2};
         const VSFrameRef *fr[] = {d->process[0] ? 0 : src1, d->process[1] ? 0 : src1, d->process[2] ? 0 : src1};
@@ -481,9 +437,9 @@ static const VSFrameRef *VS_CC maskedMergeGetFrame(int n, int activationReason, 
 #endif
                 if (!func) {
                     if (d->vi->format->sampleType == stInteger && d->vi->format->bytesPerSample == 1)
-                        func = d->premultiplied ? (yuvhandling ? vs_mask_merge_premul_byte_c : vs_mask_merge_premul_byte_c) : vs_mask_merge_byte_c;
+                        func = d->premultiplied ? vs_mask_merge_premul_byte_c : vs_mask_merge_byte_c;
                     else if (d->vi->format->sampleType == stInteger && d->vi->format->bytesPerSample == 2)
-                        func = d->premultiplied ? (yuvhandling ? vs_mask_merge_premul_word_c : vs_mask_merge_premul_word_c) : vs_mask_merge_word_c;
+                        func = d->premultiplied ? vs_mask_merge_premul_word_c : vs_mask_merge_word_c;
                     else if (d->vi->format->sampleType == stFloat && d->vi->format->bytesPerSample == 4)
                         func = d->premultiplied ? vs_mask_merge_premul_float_c : vs_mask_merge_float_c;
                 }

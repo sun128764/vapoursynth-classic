@@ -407,7 +407,7 @@ void VSThreadPool::startInternal(const PFrameContext &context) {
     }
 
     // a normal tick for caches to adjust their sizes based on recent history
-    if (!context->upstreamContext && ++ticks == 500) {
+    if (!context->upstreamContext && ++ticks == 50) {
         ticks = 0;
         notifyCaches(false);
     }

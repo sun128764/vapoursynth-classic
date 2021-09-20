@@ -88,3 +88,27 @@ jobs:
 
     - name: Run test
       run: python -m unittest discover -s test -p "*test.py"
+
+    - name: Install sphinx
+      run: |
+        pip install -r python-requirements.txt
+
+    - name: Build Doc
+      shell: cmd
+      run: |
+        set SPHINXBUILD=sphinx-build
+        call docs_build.bat
+
+    - name: Build release
+      shell: bash
+      run: |
+        set -ex
+        mv doc/_build/html upload/doc
+
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: release-${{matrix.arch}}
+        if-no-files-found: error
+        path: |
+          upload/

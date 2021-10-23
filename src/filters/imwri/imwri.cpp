@@ -656,9 +656,9 @@ static const VSFrameRef *VS_CC readGetFrame(int n, int activationReason, void **
                 return nullptr;
             }
 
-            frame = vsapi->newVideoFrame(d->vi[0].format ? d->vi[0].format : vsapi->registerFormat(cf, stInteger, depth, 0, 0, core), width, height, nullptr, core);
+            frame = vsapi->newVideoFrame(d->vi[0].format ? d->vi[0].format : vsapi->registerFormat(cf, st, depth, 0, 0, core), width, height, nullptr, core);
             if (d->alpha)
-                alphaFrame = vsapi->newVideoFrame(d->vi[1].format ? d->vi[1].format : vsapi->registerFormat(cmGray, stInteger, depth, 0, 0, core), width, height, nullptr, core);
+                alphaFrame = vsapi->newVideoFrame(d->vi[1].format ? d->vi[1].format : vsapi->registerFormat(cmGray, st, depth, 0, 0, core), width, height, nullptr, core);
             const VSFormat *fi = vsapi->getFrameFormat(frame);
  
             bool isGray = fi->colorFamily == cmGray;                

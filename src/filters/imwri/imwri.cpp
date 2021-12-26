@@ -59,6 +59,7 @@ using MagickCore::Quantum;
 //////////////////////////////////////////
 // Shared
 
+namespace {
 static void initMagick(VSCore *core, const VSAPI *vsapi) {
     std::string path;
 #ifdef _WIN32
@@ -824,7 +825,7 @@ static void VS_CC readCreate(const VSMap *in, VSMap *out, void *userData, VSCore
 
     vsapi->createFilter(in, out, "Read", readInit, readGetFrame, readFree, fmUnordered, 0, d.release(), core);
 }
-
+} // namespace
 
 //////////////////////////////////////////
 // Init

@@ -201,4 +201,4 @@ jobs:
         name: release-${{matrix.arch}}
         if-no-files-found: error
         path: |
-          upload/
+          ~/work/vapoursynth-classic/vapoursynth-classic

@@ -81,4 +81,4 @@ jobs:
       with:
         name: Package-${{ github.run_id }}
         path: |
-          /
+          ../sdist

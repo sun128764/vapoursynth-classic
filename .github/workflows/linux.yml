@@ -80,3 +80,5 @@ jobs:
       uses: actions/upload-artifact@v3.0.0
       with:
         name: Package-${{ github.run_id }}
+        path: |
+          /

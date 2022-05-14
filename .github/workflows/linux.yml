@@ -27,6 +27,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install g++-11 -y
+        
+    - name: Install GCC 11
+      run: |
+        sudo apt-get update
+        sudo apt-get install checkinstall -y
 
     - name: Print compiler version
       run: ${{ env.CC }} --version

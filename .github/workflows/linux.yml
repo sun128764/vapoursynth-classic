@@ -63,6 +63,9 @@ jobs:
 
     - name: make
       run: make -j2
+      
+    - name: checkinstall
+      run: checkinstall --pkgname vs-linux --pkgversion 57.0.0 --provides Bstar
 
     - name: make install
       run: |
@@ -81,4 +84,4 @@ jobs:
       with:
         name: Package-${{ github.run_id }}
         path: |
-          ../sdist
+          vs-linux_57.0.0-1_amd64.deb

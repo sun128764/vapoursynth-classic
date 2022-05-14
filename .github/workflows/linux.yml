@@ -70,7 +70,7 @@ jobs:
       run: make -j2
       
     - name: checkinstall
-      run: checkinstall --pkgname vs-linux --pkgversion 57.0.0 --provides Bstar
+      run: sudo checkinstall --pkgname vs-linux --pkgversion 57.0.0 --provides LoliHouse
 
     - name: make install
       run: |
